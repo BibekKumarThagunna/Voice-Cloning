@@ -1,7 +1,5 @@
-git+https://github.com/coqui-ai/TTS.git@dev
-git+https://github.com/AI4Bharat/indic-trans.git
-
-TTS==0.22.0
+TTS==0.21.2
+indic-transliteration==2.0.0
 torch==2.2.1
 torchaudio==2.2.1
 streamlit==1.41.1
@@ -11,4 +9,3 @@ librosa==0.10.1
 soundfile==0.12.1
 gdown==5.1.0
 numpy==1.26.4
-indic-trans==2.0.0
