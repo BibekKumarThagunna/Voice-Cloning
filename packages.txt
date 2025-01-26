@@ -1,0 +1,4 @@
+libsndfile1
+ffmpeg
+espeak-ng
+portaudio19-dev
