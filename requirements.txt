@@ -1,6 +1,5 @@
 git+https://github.com/coqui-ai/TTS.git@dev
-git+https://github.com/libindic/indic-trans.git
-
+git+https://github.com/AI4Bharat/indic-trans.git
 
 TTS==0.22.0
 torch==2.2.1
