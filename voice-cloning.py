@@ -4,11 +4,11 @@ import numpy as np
 import noisereduce as nr
 from TTS.api import TTS
 from indictrans.inference.engine import Model
-import librosa
 from pydub import AudioSegment
 import io
 import os
 import gdown
+import soundfile as sf
 
 # --- Configuration ---
 MODEL_CACHE = "./model_cache"
@@ -29,12 +29,12 @@ def load_models():
     # Translation model
     trans_model = Model(expdir="indic-en", device="cuda" if torch.cuda.is_available() else "cpu")
     
-    # Voice cloning model
+    # Voice cloning model (XTTS v2)
     tts = TTS(
-        model_name="tts_models/multilingual/multi-dataset/your_tts",
+        model_name="tts_models/multilingual/multi-dataset/xtts_v2",
         progress_bar=False,
         gpu=torch.cuda.is_available()
-    )
+    ).to("cuda" if torch.cuda.is_available() else "cpu")
     
     return trans_model, tts
 
@@ -52,13 +52,9 @@ def process_audio(uploaded_file, reduce_noise=True):
     # Noise reduction
     if reduce_noise and len(samples) > 0:
         try:
-            # Convert to float32
             samples_float = samples.astype(np.float32) / (2**15)
-            
-            # Noise profile (first 500ms)
             noise_samples = samples_float[:int(0.5 * sample_rate)]
             
-            # Reduce noise
             cleaned = nr.reduce_noise(
                 y=samples_float,
                 y_noise=noise_samples,
@@ -66,7 +62,6 @@ def process_audio(uploaded_file, reduce_noise=True):
                 prop_decrease=0.85
             )
             
-            # Convert back to int16
             samples = (cleaned * (2**15)).astype(np.int16)
         except Exception as e:
             st.warning(f"Noise reduction failed: {str(e)}")
@@ -77,10 +72,7 @@ def process_audio(uploaded_file, reduce_noise=True):
         frame_rate=sample_rate,
         sample_width=audio.sample_width,
         channels=1
-    )
-    
-    # Resample to 22.05kHz
-    cleaned_audio = cleaned_audio.set_frame_rate(22050)
+    ).set_frame_rate(16000)
     
     buffer = io.BytesIO()
     cleaned_audio.export(buffer, format="wav")
@@ -141,18 +133,13 @@ with col2:
 if st.button("Generate Voice") and reference_audio and input_text:
     with st.spinner("Processing..."):
         try:
-            # Process audio
             processed_audio = process_audio(reference_audio, reduce_noise)
-            
-            # Generate voice
             audio_bytes, translated = generate_voice(input_text, processed_audio, target_lang)
             
             if audio_bytes:
-                # Display results
                 st.subheader("Output Audio")
                 st.audio(audio_bytes, format="audio/mp3")
                 
-                # Download button
                 st.download_button(
                     "Download MP3",
                     data=audio_bytes,
@@ -160,7 +147,6 @@ if st.button("Generate Voice") and reference_audio and input_text:
                     mime="audio/mp3"
                 )
                 
-                # Show translation
                 if target_lang == "Hindi":
                     st.subheader("Hindi Translation")
                     st.write(translated)
@@ -173,13 +159,13 @@ else:
 with st.expander("Technical Specifications"):
     st.write("""
     **System Requirements**:
-    - CPU: x86-64 (AVX2 support recommended)
+    - Python 3.11+
+    - CUDA 12.1 (recommended)
     - RAM: 4GB+ 
-    - Disk: 5GB+ free space
     
     **Processing Pipeline**:
-    1. Noise reduction (optional)
-    2. Audio normalization (22.05kHz, mono)
-    3. Text translation (English → Hindi)
-    4. Voice cloning & synthesis
+    1. Audio preprocessing (noise reduction + resampling)
+    2. Text translation (English ↔ Hindi)
+    3. Voice cloning with XTTS v2
+    4. MP3 conversion
     """)
